@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skill Gap Analysis & Learning Roadmap</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+        body {
+            background-color: var(--bg-dark);
+            color: #f8fafc;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .skill-badge {
+            font-size: 0.9rem;
+            padding: 6px 12px;
+            border-radius: 8px;
+            margin: 4px;
+            display: inline-block;
+        }
+        .roadmap-step {
+            border-left: 3px solid #3b82f6;
+            padding-left: 20px;
+            position: relative;
+            margin-bottom: 25px;
+        }
+        .roadmap-step::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 0;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom border-secondary sticky-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/recommendations"><i class="bi bi-arrow-left me-2"></i>Back to Recommendations</a>
+        </div>
+    </nav>
+
+    <div class="container my-5">
+        <div class="glass-card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h3 class="fw-bold text-white mb-1" id="projectTitle">Loading Job Skill Gap Analysis...</h3>
+                    <div class="text-secondary" id="jobSub">Target Project ID: {{ project_id }}</div>
+                </div>
+                <div class="text-end">
+                    <span class="display-6 fw-bold text-warning" id="matchPercentage">--%</span>
+                    <div class="text-secondary small" id="readinessTag">Matching Score</div>
+                </div>
+            </div>
+            <div class="alert alert-dark border-secondary text-light mb-0" id="recommendationNote">
+                Analyzing required skills vs your current skill inventory...
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Possessed vs Missing Skills -->
+            <div class="col-lg-5">
+                <div class="glass-card p-4 mb-4">
+                    <h5 class="fw-bold mb-3 text-success"><i class="bi bi-check-circle-fill me-2"></i>Possessed Matched Skills</h5>
+                    <div id="matchedSkillsList">
+                        <span class="text-muted">Loading...</span>
+                    </div>
+                </div>
+
+                <div class="glass-card p-4">
+                    <h5 class="fw-bold mb-3 text-warning"><i class="bi bi-exclamation-triangle-fill me-2"></i>Missing Skills (Gaps)</h5>
+                    <div id="missingSkillsList">
+                        <span class="text-muted">Loading...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Learning Roadmap -->
+            <div class="col-lg-7">
+                <div class="glass-card p-4">
+                    <h4 class="fw-bold mb-3 text-primary"><i class="bi bi-compass me-2"></i>Personalized Learning Roadmap</h4>
+                    <p class="text-secondary small">Follow this multi-stage learning path to master your missing skills and boost your job application success rate.</p>
+                    
+                    <div id="roadmapContent" class="mt-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const projectId = {{ project_id }};
+        const token = localStorage.getItem("access_token");
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            if (!token) {
+                window.location.href = "/login";
+                return;
+            }
+            await fetchSkillGapAndRoadmap();
+        });
+
+        async function fetchSkillGapAndRoadmap() {
+            try {
+                // Fetch Skill Gap
+                const gapRes = await fetch(`/api/recommendations/skill-gap/${projectId}`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                const gapData = await gapRes.json();
+
+                if (!gapData.success) {
+                    document.getElementById("projectTitle").innerText = "Error loading analysis";
+                    return;
+                }
+
+                const gap = gapData.data;
+                document.getElementById("projectTitle").innerText = gap.project_title;
+                document.getElementById("matchPercentage").innerText = `${gap.match_percentage}%`;
+                document.getElementById("readinessTag").innerText = gap.readiness;
+                document.getElementById("recommendationNote").innerText = gap.recommendation_note;
+
+                // Render Matched Skills
+                const matchedDiv = document.getElementById("matchedSkillsList");
+                if (gap.matched_skills.length) {
+                    matchedDiv.innerHTML = gap.matched_skills.map(s => `<span class="skill-badge bg-success text-white"><i class="bi bi-check me-1"></i>${s}</span>`).join("");
+                } else {
+                    matchedDiv.innerHTML = `<span class="text-secondary small">No matching skills found in your profile yet.</span>`;
+                }
+
+                // Render Missing Skills
+                const missingDiv = document.getElementById("missingSkillsList");
+                if (gap.missing_skills.length) {
+                    missingDiv.innerHTML = gap.missing_skills.map(s => `<span class="skill-badge bg-warning text-dark"><i class="bi bi-dash me-1"></i>${s}</span>`).join("");
+                } else {
+                    missingDiv.innerHTML = `<span class="text-success small">No skill gaps! You are 100% qualified.</span>`;
+                }
+
+                // Fetch Learning Roadmap
+                const rmRes = await fetch(`/api/recommendations/learning-roadmap/${projectId}`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                const rmData = await rmRes.json();
+                const roadmapContainer = document.getElementById("roadmapContent");
+
+                if (!rmData.success || !rmData.data.roadmap.skill_modules.length) {
+                    roadmapContainer.innerHTML = `<div class="alert alert-success">🎉 No missing skills detected! You are ready to submit a proposal for this job right away.</div>`;
+                    return;
+                }
+
+                const rm = rmData.data.roadmap;
+                let html = `
+                    <div class="mb-4 p-3 bg-dark rounded border border-secondary">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="text-secondary small">Estimated Time</div>
+                                <div class="fw-bold text-white fs-5">${rm.estimated_days} Days (~${rm.total_estimated_hours} hrs)</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-secondary small">Missing Modules</div>
+                                <div class="fw-bold text-warning fs-5">${rm.total_missing_skills} Skills</div>
+                            </div>
+                        </div>
+                    </div>
+                    <h5 class="fw-bold text-white mb-3">Recommended Learning Resources:</h5>
+                `;
+
+                rm.skill_modules.forEach(mod => {
+                    html += `
+                        <div class="p-3 mb-3 bg-dark rounded border border-secondary">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <h6 class="fw-bold text-primary mb-1">${mod.title}</h6>
+                                <span class="badge bg-secondary">${mod.difficulty}</span>
+                            </div>
+                            <p class="text-secondary small mb-2">Estimated study time: ${mod.estimated_hours} hours</p>
+                            <div class="d-flex flex-wrap gap-2 mt-2">
+                                <a href="${mod.doc_url}" target="_blank" class="btn btn-outline-info btn-sm"><i class="bi bi-book me-1"></i>Official Docs</a>
+                                <a href="${mod.course_url}" target="_blank" class="btn btn-outline-primary btn-sm"><i class="bi bi-journal-code me-1"></i>Online Course</a>
+                                <a href="${mod.youtube_url}" target="_blank" class="btn btn-outline-danger btn-sm"><i class="bi bi-youtube me-1"></i>YouTube Tutorials</a>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `<h5 class="fw-bold text-white my-3">Step-by-Step Learning Stages:</h5>`;
+                rm.roadmap_stages.forEach(stage => {
+                    html += `
+                        <div class="roadmap-step">
+                            <h6 class="fw-bold text-white mb-1">${stage.title}</h6>
+                            <p class="text-secondary small mb-1">${stage.description}</p>
+                            <div class="text-info small"><i class="bi bi-arrow-right-circle me-1"></i>${stage.action}</div>
+                        </div>
+                    `;
+                });
+
+                roadmapContainer.innerHTML = html;
+
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    </script>
+</body>
+</html>

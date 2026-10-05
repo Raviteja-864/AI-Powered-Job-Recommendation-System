@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: job_rec_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: freelancehub
+      MYSQL_USER: fluser
+      MYSQL_PASSWORD: flpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  web:
+    build: .
+    container_name: job_rec_web
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=mysql+pymysql://fluser:flpassword@db:3306/freelancehub
+      - JWT_SECRET_KEY=docker-jwt-secret-key-change-in-prod
+    depends_on:
+      - db
+
+volumes:
+  mysql_data:
